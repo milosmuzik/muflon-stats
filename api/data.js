@@ -88,8 +88,8 @@ export default async function handler(req, res) {
   const top = leaderboard[0];
   const rangeDays = Math.round(rangeSeconds / 86400);
   const socialText = top
-    ? `📻 Za posledních ${rangeDays} dní na Rádiu Muflon: fanoušci si pustili ${totalPlays} skladeb (${uniqueTracks} unikátních), odehráli jsme přibližně ${hoursPlayed} hodin hudby. Nejhranější skladbou byla ${top.artist} – ${top.title} (${top.count}×). 🐏🤟`
-    : `📻 Za posledních ${rangeDays} dní zatím nemáme dost dat na shrnutí.`;
+    ? `${rangeDays} dní · ${totalPlays} skladeb · ${uniqueTracks} unikátních · ${hoursPlayed} h hudby · TOP: ${top.artist} – ${top.title} (${top.count}×)`
+    : `${rangeDays} dní · zatím nemáme dost dat.`;
 
   return res.status(200).json({
     ok: true,
