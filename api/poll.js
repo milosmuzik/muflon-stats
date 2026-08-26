@@ -57,7 +57,12 @@ async function fetchCurrentTrack(debug) {
     return { payload: null, timeline, raw };
   } catch (e) {
     mark(`error: ${e.message}`);
-    return { payload: null, timeline, error: e.message };
+    return {
+      payload: null,
+      timeline,
+      error: e.message,
+      cause: e.cause ? String(e.cause) : null,
+    };
   } finally {
     clearTimeout(timeout);
   }
@@ -103,7 +108,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ ok: false, error: e.message });
   }
 
-  const { payload, timeline, raw, error } = await fetchCurrentTrack(debug);
+  const { payload, timeline, raw, error, cause } = await fetchCurrentTrack(debug);
   const track = extractTrack(payload);
 
   if (!track) {
@@ -111,7 +116,7 @@ export default async function handler(req, res) {
       ok: true,
       skipped: true,
       reason: 'no valid track data',
-      ...(debug ? { timeline, raw, error, payload } : {}),
+      ...(debug ? { timeline, raw, error, cause, payload } : {}),
     });
   }
 
