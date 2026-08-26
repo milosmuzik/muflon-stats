@@ -4,9 +4,13 @@ export default async function handler(req, res) {
   const t0 = Date.now();
   const timeline = [];
   const mark = (label) => timeline.push(`${label}: +${Date.now() - t0}ms`);
+  let raw = '';
+  let status = null;
+  let headers = null;
+  let errorMsg = null;
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
+  const timeout = setTimeout(() => controller.abort(), 12000);
 
   try {
     mark('starting fetch');
@@ -14,30 +18,32 @@ export default async function handler(req, res) {
       signal: controller.signal,
       headers: { Accept: 'text/event-stream' },
     });
-    mark(`got response, status ${response.status}`);
-    const headers = Object.fromEntries(response.headers.entries());
+    status = response.status;
+    headers = Object.fromEntries(response.headers.entries());
+    mark(`got response, status ${status}`);
 
-    if (!response.body) {
-      clearTimeout(timeout);
-      return res.status(200).json({ timeline, status: response.status, headers, raw: null });
+    if (response.body) {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      try {
+        for (let i = 0; i < 6; i++) {
+          const { value, done } = await reader.read();
+          mark(`chunk ${i}: done=${done} bytes=${value ? value.length : 0}`);
+          if (done) break;
+          raw += decoder.decode(value, { stream: true });
+          if (raw.length > 3000) break;
+        }
+      } catch (readErr) {
+        mark(`read error: ${readErr.message}`);
+      }
+      reader.cancel().catch(() => {});
     }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let raw = '';
-    for (let i = 0; i < 5; i++) {
-      const { value, done } = await reader.read();
-      mark(`chunk ${i}: done=${done} bytes=${value ? value.length : 0}`);
-      if (done) break;
-      raw += decoder.decode(value, { stream: true });
-      if (raw.length > 2000) break;
-    }
-    reader.cancel().catch(() => {});
-    clearTimeout(timeout);
-    return res.status(200).json({ timeline, status: response.status, headers, raw: raw.slice(0, 2000) });
   } catch (e) {
+    mark(`fetch error: ${e.message}`);
+    errorMsg = e.message;
+  } finally {
     clearTimeout(timeout);
-    mark(`error: ${e.message}`);
-    return res.status(200).json({ timeline, error: e.message });
   }
+
+  return res.status(200).json({ timeline, status, headers, raw, error: errorMsg });
 }
