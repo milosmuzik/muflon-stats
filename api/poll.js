@@ -8,6 +8,17 @@ const PLAYS_KEY = 'muflon:plays';
 const LAST_TRACK_KEY = 'muflon:last';
 const RETENTION_SECONDS = 9 * 24 * 60 * 60;
 
+function describeCause(cause) {
+  if (!cause) return null;
+  if (Array.isArray(cause.errors)) {
+    return cause.errors
+      .map((err) => `${err.code || err.name || '?'}: ${err.message || err}`)
+      .join(' | ');
+  }
+  if (cause.code) return `${cause.code}: ${cause.message}`;
+  return String(cause);
+}
+
 async function fetchCurrentTrack(debug) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -61,7 +72,7 @@ async function fetchCurrentTrack(debug) {
       payload: null,
       timeline,
       error: e.message,
-      cause: e.cause ? String(e.cause) : null,
+      cause: describeCause(e.cause),
     };
   } finally {
     clearTimeout(timeout);
