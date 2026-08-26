@@ -4,33 +4,41 @@ const STREAM_ID = process.env.ZENO_STREAM_ID || 'wjj5yshttnitv';
 const METADATA_URL = `https://api.zeno.fm/mounts/metadata/subscribe/${STREAM_ID}`;
 const FETCH_TIMEOUT_MS = 8000;
 
-const PLAYS_KEY = 'muflon:plays'; // sorted set: score = unix ts, member = JSON event
-const LAST_TRACK_KEY = 'muflon:last'; // string "artist||title" pro rychlé porovnání
-const RETENTION_SECONDS = 9 * 24 * 60 * 60; // držíme 9 dní surového logu (dashboard ukazuje 7)
+const PLAYS_KEY = 'muflon:plays';
+const LAST_TRACK_KEY = 'muflon:last';
+const RETENTION_SECONDS = 9 * 24 * 60 * 60;
 
-// Zeno posílá metadata jako SSE (nekonečný stream). Nás zajímá jen první
-// událost - jakmile ji dostaneme, spojení zavřeme, ať funkce neběží dlouho.
-async function fetchCurrentTrack() {
+async function fetchCurrentTrack(debug) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const timeline = [];
+  const t0 = Date.now();
+  const mark = (label) => { if (debug) timeline.push(`${label}: +${Date.now() - t0}ms`); };
+
   try {
+    mark('starting fetch');
     const res = await fetch(METADATA_URL, {
       signal: controller.signal,
       headers: { Accept: 'text/event-stream' },
     });
-    if (!res.ok || !res.body) return null;
+    mark(`got response status ${res.status}`);
+    if (!res.ok || !res.body) return { payload: null, timeline };
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
+    let raw = '';
 
     while (true) {
       const { value, done } = await reader.read();
+      mark(`chunk done=${done} bytes=${value ? value.length : 0}`);
       if (done) break;
-      buffer += decoder.decode(value, { stream: true });
+      const chunkText = decoder.decode(value, { stream: true });
+      raw += chunkText;
+      buffer += chunkText;
 
       const lines = buffer.split('\n');
-      buffer = lines.pop() ?? ''; // nedokončený řádek necháme na příště
+      buffer = lines.pop() ?? '';
 
       for (const line of lines) {
         const trimmed = line.trim();
@@ -39,23 +47,22 @@ async function fetchCurrentTrack() {
         try {
           const payload = JSON.parse(jsonStr);
           reader.cancel().catch(() => {});
-          return payload;
-        } catch {
-          // řádek zatím není kompletní/platný JSON, čekáme na další chunk
+          return { payload, timeline, raw };
+        } catch (parseErr) {
+          mark(`parse fail: ${parseErr.message}`);
         }
       }
+      if (raw.length > 3000) break;
     }
-    return null;
-  } catch {
-    // timeout, výpadek zdrojového serveru apod. - tenhle tik prostě přeskočíme
-    return null;
+    return { payload: null, timeline, raw };
+  } catch (e) {
+    mark(`error: ${e.message}`);
+    return { payload: null, timeline, error: e.message };
   } finally {
     clearTimeout(timeout);
   }
 }
 
-// Zeno formát metadat se může lišit stanici od stanice - zkoušíme
-// nejběžnější varianty polí, ať appka nespadne na nečekaném tvaru dat.
 function extractTrack(payload) {
   if (!payload || typeof payload !== 'object') return null;
 
@@ -87,6 +94,8 @@ export default async function handler(req, res) {
     return res.status(401).json({ ok: false, error: 'unauthorized' });
   }
 
+  const debug = req.query.debug === '1';
+
   let redis;
   try {
     redis = getRedis();
@@ -94,13 +103,16 @@ export default async function handler(req, res) {
     return res.status(500).json({ ok: false, error: e.message });
   }
 
-  const payload = await fetchCurrentTrack();
+  const { payload, timeline, raw, error } = await fetchCurrentTrack(debug);
   const track = extractTrack(payload);
 
   if (!track) {
-    return res
-      .status(200)
-      .json({ ok: true, skipped: true, reason: 'no valid track data' });
+    return res.status(200).json({
+      ok: true,
+      skipped: true,
+      reason: 'no valid track data',
+      ...(debug ? { timeline, raw, error, payload } : {}),
+    });
   }
 
   const trackKey = `${track.artist}||${track.title}`;
@@ -109,17 +121,11 @@ export default async function handler(req, res) {
     const lastKey = await redis.get(LAST_TRACK_KEY);
 
     if (lastKey === trackKey) {
-      return res
-        .status(200)
-        .json({ ok: true, skipped: true, reason: 'unchanged', track });
+      return res.status(200).json({ ok: true, skipped: true, reason: 'unchanged', track });
     }
 
     const now = Math.floor(Date.now() / 1000);
-    const event = JSON.stringify({
-      ts: now,
-      artist: track.artist,
-      title: track.title,
-    });
+    const event = JSON.stringify({ ts: now, artist: track.artist, title: track.title });
 
     await redis.zadd(PLAYS_KEY, { score: now, member: event });
     await redis.set(LAST_TRACK_KEY, trackKey);
