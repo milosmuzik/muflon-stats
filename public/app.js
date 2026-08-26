@@ -12,6 +12,24 @@ function fmtTime(ts) {
   });
 }
 
+function fmtDateShort(ts) {
+  return new Date(ts * 1000).toLocaleString('cs-CZ', {
+    timeZone: 'Europe/Prague',
+    day: 'numeric',
+    month: 'numeric',
+  });
+}
+
+// Okno je klouzavé ("posledních N dní od teď"), takže bez zobrazení
+// konkrétního rozmezí není z popisku poznat, kde přesně začíná.
+function renderRangeLabel(generatedAt, rangeHours) {
+  const from = generatedAt - rangeHours * 3600;
+  const el = document.getElementById('rangeLabel');
+  if (el) {
+    el.textContent = `posledních 7 dní · ${fmtDateShort(from)}–${fmtDateShort(generatedAt)}`;
+  }
+}
+
 function setStatus(state, text) {
   statusDot.className = 'status-dot' + (state ? ' ' + state : '');
   statusText.textContent = text;
@@ -83,6 +101,7 @@ async function loadData() {
     if (!data.ok) throw new Error(data.error || 'neznámá chyba');
 
     renderHero(data.summary);
+    renderRangeLabel(data.generated_at, data.range_hours);
     renderLeaderboard(data.leaderboard);
     renderChart(data.hourly);
     renderLiveLog(data.liveLog);
