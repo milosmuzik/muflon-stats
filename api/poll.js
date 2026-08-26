@@ -19,6 +19,11 @@ function describeCause(cause) {
   return String(cause);
 }
 
+// Zeno posílá metadata jako nekonečný SSE stream. Nás zajímá jen první
+// událost - jakmile ji dostaneme, spojení TVRDĚ ukončíme přes
+// controller.abort() (samotné reader.cancel() spolehlivě neuvolní socket
+// a při opakovaných voláních appka postupně vyčerpá limit otevřených
+// spojení - "EMFILE").
 async function fetchCurrentTrack(debug) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -33,7 +38,10 @@ async function fetchCurrentTrack(debug) {
       headers: { Accept: 'text/event-stream' },
     });
     mark(`got response status ${res.status}`);
-    if (!res.ok || !res.body) return { payload: null, timeline };
+    if (!res.ok || !res.body) {
+      controller.abort();
+      return { payload: null, timeline };
+    }
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -57,7 +65,8 @@ async function fetchCurrentTrack(debug) {
         const jsonStr = trimmed.slice(5).trim();
         try {
           const payload = JSON.parse(jsonStr);
-          reader.cancel().catch(() => {});
+          try { await reader.cancel(); } catch {}
+          controller.abort();
           return { payload, timeline, raw };
         } catch (parseErr) {
           mark(`parse fail: ${parseErr.message}`);
@@ -65,6 +74,7 @@ async function fetchCurrentTrack(debug) {
       }
       if (raw.length > 3000) break;
     }
+    controller.abort();
     return { payload: null, timeline, raw };
   } catch (e) {
     mark(`error: ${e.message}`);
