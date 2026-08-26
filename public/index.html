@@ -1,363 +1,76 @@
-:root {
-  --font-serif: "Source Serif 4", Georgia, serif;
-  --font-sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
-  --font-mono: "IBM Plex Mono", monospace;
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Muflon Stats</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
 
-  --bg: #14181c;
-  --fg: #e7e2d6;
-  --card: #1c2228;
-  --line: #2c343b;
-  --accent: #d9a441;
-  --accent-rust: #b5544a;
-  --muted: #8b939b;
-  --ok: #7c9473;
-}
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-title">Muflon<span>Stats</span></div>
+    <div class="tab-label brand-sub">Rock &amp; Metal 24/7 · živé sledování streamu</div>
+  </div>
+  <div class="status" id="status">
+    <span class="status-dot" id="statusDot"></span>
+    <span class="tab-label" id="statusText">načítám…</span>
+  </div>
+</header>
 
-* { box-sizing: border-box; }
+<main class="wrap">
 
-html, body {
-  margin: 0;
-  padding: 0;
-}
+  <section class="hero index-card">
+    <div class="hero-card">
+      <div class="hero-num" id="numPlays">–</div>
+      <div class="tab-label">skladeb</div>
+    </div>
+    <div class="hero-card">
+      <div class="hero-num" id="numUnique">–</div>
+      <div class="tab-label">unikátních</div>
+    </div>
+    <div class="hero-card">
+      <div class="hero-num" id="numHours">–</div>
+      <div class="tab-label">hodin hudby</div>
+    </div>
+  </section>
 
-body {
-  background-color: var(--bg);
-  background-image:
-    linear-gradient(rgba(217, 164, 65, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(217, 164, 65, 0.02) 1px, transparent 1px);
-  background-size: 100% 2.1rem, 2.1rem 100%;
-  color: var(--fg);
-  font-family: var(--font-sans);
-}
+  <section class="panel index-card">
+    <h2 class="panel-title">Nejhranější skladby<span class="tab-label">posledních 7 dní</span></h2>
+    <ol class="leaderboard" id="leaderboard">
+      <li class="empty">Zatím žádná data.</li>
+    </ol>
+  </section>
 
-::selection {
-  background-color: var(--accent);
-  color: var(--bg);
-}
+  <section class="panel index-card">
+    <h2 class="panel-title">Kdy se hraje nejvíc<span class="tab-label">podle hodiny dne</span></h2>
+    <div class="chart" id="chart" role="img" aria-label="Graf počtu přehrání podle hodiny dne"></div>
+  </section>
 
-a { color: inherit; }
+  <section class="panel index-card">
+    <h2 class="panel-title">Živý log<span class="tab-label">posledních 50</span></h2>
+    <ul class="live-log" id="liveLog">
+      <li class="empty">Zatím žádná data.</li>
+    </ul>
+  </section>
 
-@media (prefers-reduced-motion: reduce) {
-  * { transition: none !important; animation: none !important; }
-}
+  <section class="panel index-card social">
+    <h2 class="panel-title">Shrnutí pro sociální sítě</h2>
+    <textarea id="socialText" rows="4" readonly></textarea>
+    <button class="btn" id="copyBtn">Kopírovat text</button>
+  </section>
 
-/* ---------- index-card: signature element used for every panel ---------- */
+  <footer class="foot">
+    <span class="tab-label" id="updatedAt">–</span>
+    <button class="btn btn-outline" id="refreshBtn">Obnovit</button>
+  </footer>
 
-.index-card {
-  position: relative;
-  background-color: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  padding: 1.85rem 1.5rem 1.5rem 2.25rem;
-}
+</main>
 
-.index-card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 1.75rem;
-  width: 1px;
-  height: 100%;
-  background: rgba(181, 84, 74, 0.35);
-}
-
-.index-card::after {
-  content: "";
-  position: absolute;
-  top: 1.6rem;
-  left: 0;
-  width: 100%;
-  height: 1px;
-  background: repeating-linear-gradient(
-    90deg,
-    rgba(139, 147, 155, 0.25) 0 6px,
-    transparent 6px 12px
-  );
-}
-
-.tab-label {
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-/* ---------- topbar ---------- */
-
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 1.5rem 1.25rem;
-  border-bottom: 1px dashed var(--line);
-  flex-wrap: wrap;
-}
-
-.brand-title {
-  font-family: var(--font-serif);
-  font-weight: 600;
-  font-size: 1.4rem;
-  color: var(--fg);
-}
-
-.brand-title span {
-  color: var(--accent);
-  margin-left: 0.15em;
-}
-
-.brand-sub {
-  margin-top: 0.4rem;
-}
-
-.status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--muted);
-  flex-shrink: 0;
-}
-
-.status-dot.ok { background: var(--ok); }
-.status-dot.err { background: var(--accent-rust); }
-
-/* ---------- layout ---------- */
-
-.wrap {
-  max-width: 680px;
-  margin: 0 auto;
-  padding: 2rem 1.25rem 4rem;
-}
-
-.panel, .hero {
-  margin-top: 1.5rem;
-}
-
-.panel-title {
-  font-family: var(--font-serif);
-  font-weight: 600;
-  font-size: 1.05rem;
-  color: var(--fg);
-  margin: 0 0 1rem;
-}
-
-.panel-title .tab-label {
-  display: inline-block;
-  margin-left: 0.6em;
-  vertical-align: middle;
-}
-
-/* ---------- hero stats ---------- */
-
-.hero {
-  display: flex;
-}
-
-.hero-card {
-  flex: 1;
-  text-align: center;
-  padding: 0 0.5rem;
-}
-
-.hero-card + .hero-card {
-  border-left: 1px dashed var(--line);
-}
-
-.hero-num {
-  font-family: var(--font-serif);
-  font-weight: 600;
-  font-size: 2rem;
-  color: var(--accent);
-  line-height: 1;
-}
-
-.hero-card .tab-label {
-  display: block;
-  margin-top: 0.5rem;
-}
-
-/* ---------- leaderboard & live log rows ---------- */
-
-.leaderboard, .live-log {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  max-height: 320px;
-  overflow-y: auto;
-}
-
-.leaderboard li, .live-log li {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 0.65rem 0;
-  background-image: repeating-linear-gradient(
-    90deg,
-    rgba(139, 147, 155, 0.25) 0 6px,
-    transparent 6px 12px
-  );
-  background-position: bottom;
-  background-size: 100% 1px;
-  background-repeat: no-repeat;
-}
-
-.leaderboard li:last-child, .live-log li:last-child {
-  background-image: none;
-}
-
-.rank {
-  font-family: var(--font-mono);
-  font-size: 0.82rem;
-  color: var(--accent);
-  width: 1.75rem;
-  text-align: right;
-  flex-shrink: 0;
-}
-
-.track {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.92rem;
-}
-
-.track b { color: var(--fg); font-weight: 600; }
-.track span { color: var(--muted); }
-
-.count {
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  color: var(--muted);
-  flex-shrink: 0;
-}
-
-.empty {
-  padding: 1rem 0 !important;
-  color: var(--muted);
-  font-size: 0.85rem;
-  justify-content: center;
-}
-
-/* ---------- hourly chart ---------- */
-
-.chart {
-  display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  height: 110px;
-  padding-top: 0.5rem;
-}
-
-.chart-bar {
-  flex: 1;
-  background: var(--accent);
-  opacity: 0.85;
-  min-height: 2px;
-  position: relative;
-}
-
-.chart-bar[data-hour="0"]::after,
-.chart-bar[data-hour="6"]::after,
-.chart-bar[data-hour="12"]::after,
-.chart-bar[data-hour="18"]::after {
-  content: attr(data-hour) "h";
-  position: absolute;
-  bottom: -18px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-family: var(--font-mono);
-  font-size: 0.6rem;
-  color: var(--muted);
-}
-
-/* ---------- live log ---------- */
-
-.live-log time {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  color: var(--muted);
-  flex-shrink: 0;
-  font-variant-numeric: tabular-nums;
-}
-
-/* ---------- social summary ---------- */
-
-.social textarea {
-  width: 100%;
-  border: none;
-  border-top: 1px dashed var(--line);
-  background: transparent;
-  resize: vertical;
-  font-family: var(--font-mono);
-  font-size: 0.85rem;
-  color: var(--fg);
-  line-height: 1.6;
-  padding-top: 0.85rem;
-  margin-top: 0.15rem;
-}
-
-.social textarea:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* ---------- buttons ---------- */
-
-.btn {
-  margin-top: 1rem;
-  background: transparent;
-  color: var(--accent);
-  border: 1px solid var(--accent);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  padding: 0.55rem 1rem;
-  border-radius: 2px;
-  cursor: pointer;
-}
-
-.btn:hover { background: var(--accent); color: var(--bg); }
-
-.btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.btn-outline {
-  color: var(--muted);
-  border-color: var(--line);
-}
-
-.btn-outline:hover {
-  color: var(--fg);
-  border-color: var(--muted);
-  background: transparent;
-}
-
-/* ---------- footer ---------- */
-
-.foot {
-  margin-top: 2.5rem;
-  padding-top: 1rem;
-  border-top: 1px dashed var(--line);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-@media (max-width: 480px) {
-  .hero-num { font-size: 1.6rem; }
-  .brand-title { font-size: 1.2rem; }
-  .index-card { padding: 1.6rem 1.1rem 1.25rem 1.85rem; }
-}
+<script src="app.js"></script>
+</body>
+</html>
