@@ -1,0 +1,9 @@
+{
+  "name": "muflon-stats",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sledování hraných skladeb na Zeno.fm streamu Rádia Muflon - živý log, žebříček, statistiky.",
+  "dependencies": {
+    "@upstash/redis": "^1.34.0"
+  }
+}
