@@ -2,7 +2,7 @@ import getRedis from '../lib/redis.js';
 
 const STREAM_ID = process.env.ZENO_STREAM_ID || 'wjj5yshttnitv';
 const METADATA_URL = `https://api.zeno.fm/mounts/metadata/subscribe/${STREAM_ID}`;
-const FETCH_TIMEOUT_MS = 5000;
+const FETCH_TIMEOUT_MS = 8000;
 
 const PLAYS_KEY = 'muflon:plays'; // sorted set: score = unix ts, member = JSON event
 const LAST_TRACK_KEY = 'muflon:last'; // string "artist||title" pro rychlé porovnání
@@ -14,7 +14,10 @@ async function fetchCurrentTrack() {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const res = await fetch(METADATA_URL, { signal: controller.signal });
+    const res = await fetch(METADATA_URL, {
+      signal: controller.signal,
+      headers: { Accept: 'text/event-stream' },
+    });
     if (!res.ok || !res.body) return null;
 
     const reader = res.body.getReader();
