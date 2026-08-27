@@ -1,4 +1,5 @@
 import getRedis from '../lib/redis.js';
+import { looksLikeAd } from '../lib/ad-filter.js';
 
 const PLAYS_KEY = 'muflon:plays';
 const DEFAULT_RANGE_SECONDS = 7 * 24 * 60 * 60; // klouzavé okno: posledních 7 dní
@@ -33,6 +34,7 @@ export default async function handler(req, res) {
         }
       })
       .filter(Boolean)
+      .filter((e) => !looksLikeAd(e.artist) && !looksLikeAd(e.title))
       .sort((a, b) => a.ts - b.ts);
   } catch (e) {
     return res.status(500).json({ ok: false, error: e.message });
