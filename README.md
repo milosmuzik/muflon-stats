@@ -43,8 +43,7 @@ nová skladba. K tomu slouží stránka cron-job.org.
 1. Přihlas se na console.cron-job.org.
 2. Klikni na **Cronjobs** → **Create cronjob**.
 3. Jako adresu (URL) zadej:
-   `https://tvoje-appka.vercel.app/api/poll`
-   (místo "tvoje-appka" použij skutečnou adresu appky z Vercelu).
+   `https://muflon-stats.vercel.app/api/poll`
 4. Nastav interval na **každou minutu**.
 5. Ulož a zapni.
 
@@ -61,7 +60,7 @@ cron-job.org, udělej toto:
 
 ## Kde appku najdu
 
-Appka běží na adrese `https://tvoje-appka.vercel.app/` – je to
+Appka běží na adrese `https://muflon-stats.vercel.app/` – je to
 statická stránka, bez přihlašování.
 
 ## Časté dotazy
