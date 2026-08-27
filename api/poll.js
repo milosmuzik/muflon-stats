@@ -1,4 +1,5 @@
 import getRedis from '../lib/redis.js';
+import { looksLikeAd } from '../lib/ad-filter.js';
 
 const STREAM_ID = process.env.ZENO_STREAM_ID || 'wjj5yshttnitv';
 const METADATA_URL = `https://api.zeno.fm/mounts/metadata/subscribe/${STREAM_ID}`;
@@ -110,6 +111,7 @@ function extractTrack(payload) {
   artist = (artist || '').trim();
   title = (title || '').trim();
   if (!title) return null;
+  if (looksLikeAd(artist) || looksLikeAd(title)) return null;
 
   return { artist, title };
 }
