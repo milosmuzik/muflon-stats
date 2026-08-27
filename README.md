@@ -1,68 +1,77 @@
 # Muflon Stats
 
-Appka sleduje hrané skladby na Zeno.fm streamu Rádia Muflon a ukazuje
-statistiky za posledních 7 dní (živý log, žebříček, graf podle hodiny,
-shrnutí pro sociální sítě).
+Appka sleduje hrané skladby na streamu Rádia Muflon a zobrazuje
+statistiky za posledních 7 dní – živý log, žebříček, graf podle hodiny
+a shrnutí pro sociální sítě.
 
-## Jak appka funguje
+## Co je potřeba nastavit
 
-- `api/poll.js` – volá se každou minutu zvenku (cron-job.org). Zjistí
-  aktuální skladbu na streamu a pokud se liší od poslední uložené,
-  zapíše ji do Redis.
-- `api/data.js` – čte log z Redis a počítá statistiky pro dashboard
-  (posledních 7 dní, klouzavé okno).
-- `public/` – samotný dashboard (statické HTML/CSS/JS).
+Aby appka fungovala, je potřeba udělat 4 kroky:
 
-## 1. Nasazení na Vercel
+1. Nahrát appku na Vercel
+2. Připojit databázi (Upstash Redis)
+3. Nastavit pravidelné volání appky (cron-job.org)
+4. Volitelně appku trochu zabezpečit
 
-1. Nahraj obsah této složky do nového GitHub repa `muflon-stats`
-   (Add file → Upload files).
-2. Na vercel.com → New Project → vyber repo `muflon-stats` → Deploy.
+Návod na každý krok je níže.
 
-## 2. Připojení Upstash Redis
+---
 
-1. V projektu na Vercelu: záložka **Storage** → **Create Database** →
-   **Upstash** (Redis).
-2. Nech Vercel spravovat účet za tebe ("Let Vercel manage your
-   Upstash account") – bez hesla, bez karty.
-3. Po vytvoření databáze ji přiřaď k projektu `muflon-stats` – Vercel
-   sám doplní potřebné proměnné prostředí.
+## Krok 1 – Nahrání appky na Vercel
 
-## 3. Volitelné: zabezpečení pollovacího endpointu
+1. Nahraj obsah této složky do nového GitHub repozitáře (např. přes
+   tlačítko "Add file → Upload files").
+2. Jdi na vercel.com → **New Project** → vyber tento repozitář →
+   klikni na **Deploy**.
 
-Aby na `/api/poll` nemohl volat kdokoliv jiný než cron-job.org, můžeš
-v nastavení projektu (Settings → Environment Variables) přidat:
+## Krok 2 – Připojení databáze
 
-```
-CRON_SECRET = libovolný-tajný-řetězec
-```
+Appka si musí ukládat data někam do databáze. Použijeme Upstash Redis,
+který jde napojit přímo ve Vercelu.
 
-Pokud tuhle proměnnou nastavíš, endpoint bude vyžadovat
-`?secret=libovolný-tajný-řetězec` v URL. Pokud ji nenastavíš, endpoint
-zůstane otevřený (jednodušší start, méně bezpečné).
+1. V projektu na Vercelu otevři záložku **Storage**.
+2. Klikni na **Create Database** a vyber **Upstash**.
+3. Nech Vercel spravovat účet za tebe (nebude potřeba heslo ani
+   platební karta).
+4. Databázi přiřaď k projektu – Vercel si sám doplní vše potřebné.
 
-## 4. Nastavení cron-job.org
+## Krok 3 – Pravidelné spouštění appky
+
+Appka potřebuje, aby se každou minutu někdo "zeptal", jestli nehraje
+nová skladba. K tomu slouží stránka cron-job.org.
 
 1. Přihlas se na console.cron-job.org.
-2. **Cronjobs** → **Create cronjob**.
-3. URL: `https://muflon-stats.vercel.app/api/poll` (případně s
-   `?secret=...`, pokud jsi nastavil CRON_SECRET výše – doplň svou
-   skutečnou Vercel doménu).
-4. Interval: každou minutu.
+2. Klikni na **Cronjobs** → **Create cronjob**.
+3. Jako adresu (URL) zadej:
+   `https://tvoje-appka.vercel.app/api/poll`
+   (místo "tvoje-appka" použij skutečnou adresu appky z Vercelu).
+4. Nastav interval na **každou minutu**.
 5. Ulož a zapni.
 
-## 5. Dashboard
+## Krok 4 – Volitelné zabezpečení (nepovinné)
 
-Appka běží na `https://muflon-stats.vercel.app/` (statická stránka
-v `public/`, žádné přihlašování).
+Bez tohoto kroku appka funguje normálně, jen je adresa
+`/api/poll` otevřená pro kohokoliv. Pokud to chceš uzavřít jen pro
+cron-job.org, udělej toto:
 
-## Poznámky
+1. Ve Vercelu: **Settings → Environment Variables** a přidej
+   proměnnou `CRON_SECRET` s libovolnou tajnou hodnotou.
+2. V adrese v cron-job.org (krok 3) pak přidej na konec
+   `?secret=tvoje-tajna-hodnota`.
 
-- Odhad "hodin hudby" počítá appka jako součet mezer mezi začátky po
-  sobě jdoucích skladeb. Mezery delší než 10 minut appka bere jako
-  výpadek zdrojového serveru streamu a do součtu je nezahrnuje.
-- Po prvním nasazení stojí za to zkontrolovat Vercel function logy
-  (`api/poll`) po pár prvních voláních – ověří se tím, že appka
-  správně parsuje formát metadat z tvého konkrétního streamu. Pokud
-  by log ukazoval "no valid track data" pořád dokola, stačí mi sem
-  poslat ukázku odpovědi a parsování doladíme.
+## Kde appku najdu
+
+Appka běží na adrese `https://tvoje-appka.vercel.app/` – je to
+statická stránka, bez přihlašování.
+
+## Časté dotazy
+
+**Jak appka počítá "hodiny hudby"?**
+Sečte mezery mezi začátky po sobě jdoucích skladeb. Pokud je mezera
+delší než 10 minut, bere to jako výpadek streamu a do součtu ji
+nezapočítá.
+
+**Appka hlásí "no valid track data", co s tím?**
+Zkontroluj ve Vercelu function logy pro `api/poll`. Pokud se tahle
+hláška opakuje pořád dokola, pošli mi ukázku odpovědi ze streamu a
+doladíme to spolu.
