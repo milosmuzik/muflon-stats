@@ -20,13 +20,18 @@ function fmtDateShort(ts) {
   });
 }
 
-// Okno je klouzavé ("posledních N dní od teď"), takže bez zobrazení
-// konkrétního rozmezí není z popisku poznat, kde přesně začíná.
+// Okno je klouzavé ("posledních N dní od teď") - přesně rangeHours hodin,
+// ne zarovnané na půlnoc. Zobrazení jen data (bez času) proto zavádělo:
+// 168hodinové okno končící v poledne zasahuje do 8 různých kalendářních
+// dat (kus prvního dne + 6 celých + kus posledního), i když jde přesně
+// o 7 dní. S časem u obou konců je vidět, že jde o stejný čas o N dní
+// zpátky, ne o 8 kalendářních dní.
 function renderRangeLabel(generatedAt, rangeHours) {
   const from = generatedAt - rangeHours * 3600;
+  const rangeDays = Math.round(rangeHours / 24);
   const el = document.getElementById('rangeLabel');
   if (el) {
-    el.textContent = `posledních 7 dní · ${fmtDateShort(from)}–${fmtDateShort(generatedAt)}`;
+    el.textContent = `posledních ${rangeDays} dní · ${fmtTime(from)}–${fmtTime(generatedAt)}`;
   }
 }
 
